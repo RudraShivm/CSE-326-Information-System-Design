@@ -54,8 +54,9 @@ Then open `http://localhost:8080`.
 
 ## 👥 Team
 
-| Name | GitHub |</br>
-| Dibbo Chowdhury| [@RudraShivm](https://github.com/RudraShivm) |</br>
-| Nujhat Sadia | [@nujhat-sadia](https://github.com/nujhat-sadia) |</br>
-| Sudip Kumar Saha | [@SudipSaha00002](https://github.com/SudipSaha00002) |</br>
-| Navin Nawar | [@navwar0](https://github.com/navwar0) |</br>
+| Name               | GitHub |
+|--------------------|--------|
+| Dibbo Chowdhury    | [@RudraShivm](https://github.com/RudraShivm) |
+| Nujhat Sadia       | [@nujhat-sadia](https://github.com/nujhat-sadia) |
+| Sudip Kumar Saha   | [@SudipSaha00002](https://github.com/SudipSaha00002) |
+| Navin Nawar        | [@navwar0](https://github.com/navwar0) |
