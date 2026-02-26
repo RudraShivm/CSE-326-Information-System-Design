@@ -30,20 +30,20 @@ A system design project for **CSE 326: Information System Design**, modelling a 
 
 ---
 
-## 🔌 API Documentation
+## API Documentation
 
-A complete **OpenAPI 3.0** specification is available in [`openapi.yaml`](openapi.yaml).
+A complete **OpenAPI 3.0** specification is available in [`8.openapi.yaml`](8.openapi.yaml).
 
 To view the interactive Swagger UI:
 
 1. Go to [editor.swagger.io](https://editor.swagger.io)
-2. **File → Import File** → select `openapi.yaml`
+2. **File → Import File** → select `8.openapi.yaml`
 
 Or run locally with Docker:
 
 ```bash
 docker run -p 8080:8080 \
-  -e SWAGGER_JSON=/api/openapi.yaml \
+  -e SWAGGER_JSON=/api/8.openapi.yaml \
   -v $(pwd):/api \
   swaggerapi/swagger-ui
 ```
