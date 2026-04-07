@@ -1,0 +1,2550 @@
+openapi: 3.0.3
+info:
+  title: Facebook API
+  description: |
+    RESTful API for **Facebook** — a social media platform built for **CSE 326: Information System Design**.
+
+    Covers authentication, user profiles, posts, reactions, comments, friend graph, groups,
+    news feed, notifications, content moderation, bans, violations, and admin workflows.
+
+    > All enums match the class diagram exactly (e.g. `Visibility`, `ReactionType`, `FriendshipStatus`, etc.)
+  version: 1.0.0
+  contact:
+    name: RudraShivm
+    url: https://github.com/RudraShivm/CSE-326-Information-System-Design
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Server
+  - url: https://api.facebook-isd.io/v1
+    description: Production Server
+
+tags:
+  - name: Auth
+    description: Registration, login, and token management
+  - name: Users
+    description: User profiles and account settings
+  - name: Friends
+    description: Friend requests, suggestions, and friendship management
+  - name: Posts
+    description: Create, retrieve, update, and delete posts
+  - name: Comments
+    description: Comment threads on posts
+  - name: Reactions
+    description: Emoji reactions on posts and comments
+  - name: Feed
+    description: Personalized news feed (ranking + recommendation engine)
+  - name: Groups
+    description: Group creation, membership, and posts
+  - name: Notifications
+    description: Real-time notification management
+  - name: Moderation
+    description: Content flagging and reporting
+  - name: Admin
+    description: Admin-only moderation, bans, violations, and analytics
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY
+# ─────────────────────────────────────────────────────────────────────────────
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from `/auth/login`
+
+  # ─── REUSABLE EXAMPLES ───────────────────────────────────────────────────────
+  examples:
+
+    UserSummaryExample:
+      value:
+        userId: "a1b2c3d4-0001-0001-0001-000000000001"
+        firstName: "Alice"
+        lastName: "Johnson"
+        profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+        isActive: true
+
+    UserProfileExample:
+      value:
+        userId: "a1b2c3d4-0001-0001-0001-000000000001"
+        email: "alice@example.com"
+        firstName: "Alice"
+        lastName: "Johnson"
+        dateOfBirth: "1998-06-15"
+        profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+        bio: "Coffee lover ☕ | Software Engineer at XYZ Corp"
+        isActive: true
+        createdAt: "2022-09-01T10:00:00Z"
+        updatedAt: "2026-02-20T08:30:00Z"
+        friendshipStatus: "ACCEPTED"
+
+    PostExample:
+      value:
+        postId: "p1b2c3d4-0001-0001-0001-000000000001"
+        author:
+          userId: "a1b2c3d4-0001-0001-0001-000000000001"
+          firstName: "Alice"
+          lastName: "Johnson"
+          profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+          isActive: true
+        content: "Just shipped a brand new feature! Really proud of the team 🚀"
+        imageUrl: "https://cdn.facebook-isd.io/media/post1_img1.jpg"
+        videoUrl: null
+        visibility: "FRIENDS"
+        likeCount: 142
+        commentCount: 23
+        shareCount: 7
+        myReaction: "LIKE"
+        createdAt: "2026-02-20T08:30:00Z"
+        updatedAt: "2026-02-20T08:30:00Z"
+
+    CommentExample:
+      value:
+        commentId: "c1b2c3d4-0001-0001-0001-000000000001"
+        postId: "p1b2c3d4-0001-0001-0001-000000000001"
+        author:
+          userId: "b2c3d4e5-0002-0002-0002-000000000002"
+          firstName: "Bob"
+          lastName: "Smith"
+          profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+          isActive: true
+        content: "Congrats! That's amazing 🎉"
+        createdAt: "2026-02-20T09:00:00Z"
+        updatedAt: "2026-02-20T09:00:00Z"
+
+    FriendshipExample:
+      value:
+        friendshipId: "fr1b2c3d-0001-0001-0001-000000000001"
+        requester:
+          userId: "a1b2c3d4-0001-0001-0001-000000000001"
+          firstName: "Alice"
+          lastName: "Johnson"
+          profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+          isActive: true
+        receiver:
+          userId: "b2c3d4e5-0002-0002-0002-000000000002"
+          firstName: "Bob"
+          lastName: "Smith"
+          profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+          isActive: true
+        status: "PENDING"
+        createdAt: "2026-02-25T14:00:00Z"
+        acceptedAt: null
+
+    GroupExample:
+      value:
+        groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+        name: "CSE 326 Study Group"
+        description: "Discussion group for Information System Design course."
+        privacy: "PUBLIC"
+        memberCount: 47
+        createdAt: "2026-01-10T10:00:00Z"
+
+    NotificationExample:
+      value:
+        notificationId: "n1b2c3d4-0001-0001-0001-000000000001"
+        type: "POST_LIKE"
+        title: "New Reaction"
+        message: "Bob Smith reacted ❤️ to your post."
+        isRead: false
+        createdAt: "2026-02-25T15:30:00Z"
+
+    ContentFlagExample:
+      value:
+        flagId: "fl1b2c3d-0001-0001-0001-000000000001"
+        contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+        contentType: "POST"
+        flaggedBy:
+          userId: "b2c3d4e5-0002-0002-0002-000000000002"
+          firstName: "Bob"
+          lastName: "Smith"
+          profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+          isActive: true
+        aiScore: 0.82
+        priority: "HIGH"
+        status: "PENDING"
+        createdAt: "2026-02-25T16:00:00Z"
+        reviewedAt: null
+
+    BanRecordExample:
+      value:
+        banId: "ban1b2c3-0001-0001-0001-000000000001"
+        userId: "b2c3d4e5-0002-0002-0002-000000000002"
+        banType: "TEMPORARY_7_DAYS"
+        reason: "Repeated hate speech violations."
+        violationCount: 3
+        issuedAt: "2026-02-26T09:00:00Z"
+        expiresAt: "2026-03-05T09:00:00Z"
+        isActive: true
+
+    ViolationExample:
+      value:
+        violationId: "vio1b2c3-0001-0001-0001-000000000001"
+        userId: "b2c3d4e5-0002-0002-0002-000000000002"
+        violationType: "HATE_SPEECH"
+        severity: 2
+        contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+        description: "Post contained targeted hate speech."
+        issuedAt: "2026-02-26T09:00:00Z"
+        expiresAt: "2026-03-26T09:00:00Z"
+
+    GroupDeletionRequestExample:
+      value:
+        requestId: "gdr1b2c3-0001-0001-0001-000000000001"
+        groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+        reason: "Group is no longer active."
+        status: "PENDING"
+        createdAt: "2026-02-26T10:00:00Z"
+        reviewedAt: null
+
+    UnauthorizedExample:
+      value:
+        code: "UNAUTHORIZED"
+        message: "Authentication token is missing or expired."
+
+    ForbiddenExample:
+      value:
+        code: "FORBIDDEN"
+        message: "You do not have permission to perform this action."
+
+    NotFoundExample:
+      value:
+        code: "NOT_FOUND"
+        message: "The requested resource was not found."
+
+  # ─── SCHEMAS ─────────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Enums (matching class diagram exactly) ────────────────────────────────
+
+    Visibility:
+      type: string
+      enum: [PUBLIC, FRIENDS, PRIVATE]
+      description: Post visibility level
+
+    ReactionType:
+      type: string
+      enum: [LIKE, LOVE, HAHA, WOW, SAD, ANGRY]
+
+    FriendshipStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, BLOCKED, DECLINED]
+
+    GroupPrivacy:
+      type: string
+      enum: [PUBLIC, PRIVATE]
+
+    NotificationType:
+      type: string
+      enum: [FRIEND_REQUEST, POST_LIKE, POST_COMMENT, GROUP_INVITE, SYSTEM_ALERT]
+
+    RequestStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    ViolationType:
+      type: string
+      enum: [HATE_SPEECH, HARASSMENT, SPAM, MISINFORMATION, INAPPROPRIATE_CONTENT, COPYRIGHT_VIOLATION, THREAT, OTHER]
+
+    ModerationAction:
+      type: string
+      enum: [APPROVE, DELETE, WARN, BAN_TEMPORARY, BAN_PERMANENT, ESCALATE]
+
+    ContentType:
+      type: string
+      enum: [POST, COMMENT, MESSAGE, GROUP_POST, PROFILE_CONTENT]
+
+    FlagStatus:
+      type: string
+      enum: [PENDING, UNDER_REVIEW, RESOLVED, ESCALATED]
+
+    ContentFlagPriority:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    BanType:
+      type: string
+      enum: [FINAL_WARNING, TEMPORARY_7_DAYS, TEMPORARY_30_DAYS, TEMPORARY_90_DAYS, PERMANENT]
+
+    GroupModerationAction:
+      type: string
+      enum: [DISMISS, WARN_ADMIN, REMOVE_ADMIN, DISABLE_GROUP, DELETE_GROUP]
+
+    AdminRole:
+      type: string
+      enum: [SUPER_ADMIN, MODERATOR, CONTENT_REVIEWER]
+
+    # ── Core Entity Schemas ───────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName, dateOfBirth]
+      properties:
+        email:       { type: string, format: email, example: "alice@example.com" }
+        password:    { type: string, format: password, minLength: 8, example: "Secur3P@ss" }
+        firstName:   { type: string, example: "Alice" }
+        lastName:    { type: string, example: "Johnson" }
+        dateOfBirth: { type: string, format: date, example: "1998-06-15" }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email, example: "alice@example.com" }
+        password: { type: string, format: password, example: "Secur3P@ss" }
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:  { type: string }
+        refreshToken: { type: string }
+        expiresIn:    { type: integer, description: "Seconds until access token expires" }
+        user:         { $ref: '#/components/schemas/UserSummary' }
+
+    UserSummary:
+      type: object
+      description: Lightweight user representation for embedding
+      properties:
+        userId:         { type: string, format: uuid }
+        firstName:      { type: string }
+        lastName:       { type: string }
+        profilePicture: { type: string, format: uri, nullable: true }
+        isActive:       { type: boolean }
+
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          properties:
+            email:            { type: string, format: email }
+            bio:              { type: string, nullable: true }
+            dateOfBirth:      { type: string, format: date }
+            createdAt:        { type: string, format: date-time }
+            updatedAt:        { type: string, format: date-time }
+            friendshipStatus:
+              oneOf:
+                - $ref: '#/components/schemas/FriendshipStatus'
+              nullable: true
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:      { type: string, example: "Alice" }
+        lastName:       { type: string, example: "Johnson" }
+        bio:            { type: string, example: "Passionate about building scalable systems." }
+        profilePicture: { type: string, format: uri }
+
+    Friendship:
+      type: object
+      properties:
+        friendshipId: { type: string, format: uuid }
+        requester:    { $ref: '#/components/schemas/UserSummary' }
+        receiver:     { $ref: '#/components/schemas/UserSummary' }
+        status:       { $ref: '#/components/schemas/FriendshipStatus' }
+        createdAt:    { type: string, format: date-time }
+        acceptedAt:   { type: string, format: date-time, nullable: true }
+
+    FriendSuggestion:
+      type: object
+      properties:
+        user:          { $ref: '#/components/schemas/UserSummary' }
+        mutualFriends: { type: integer }
+        reason:
+          type: string
+          enum: [mutual_friends, same_location, graph_proximity]
+
+    Post:
+      type: object
+      properties:
+        postId:       { type: string, format: uuid }
+        author:       { $ref: '#/components/schemas/UserSummary' }
+        content:      { type: string }
+        imageUrl:     { type: string, format: uri, nullable: true }
+        videoUrl:     { type: string, format: uri, nullable: true }
+        visibility:   { $ref: '#/components/schemas/Visibility' }
+        likeCount:    { type: integer }
+        commentCount: { type: integer }
+        shareCount:   { type: integer }
+        myReaction:
+          oneOf:
+            - $ref: '#/components/schemas/ReactionType'
+          nullable: true
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    CreatePostRequest:
+      type: object
+      required: [content]
+      properties:
+        content:    { type: string }
+        visibility:
+          allOf:
+            - $ref: '#/components/schemas/Visibility'
+          default: FRIENDS
+        imageUrl:   { type: string, format: uri, nullable: true }
+        videoUrl:   { type: string, format: uri, nullable: true }
+
+    UpdatePostRequest:
+      type: object
+      properties:
+        content:    { type: string }
+        visibility: { $ref: '#/components/schemas/Visibility' }
+
+    Comment:
+      type: object
+      properties:
+        commentId:  { type: string, format: uuid }
+        postId:     { type: string, format: uuid }
+        author:     { $ref: '#/components/schemas/UserSummary' }
+        content:    { type: string }
+        createdAt:  { type: string, format: date-time }
+        updatedAt:  { type: string, format: date-time }
+
+    CreateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+
+    UpdateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+
+    ReactionRequest:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: '#/components/schemas/ReactionType' }
+
+    ReactionSummary:
+      type: object
+      properties:
+        total:     { type: integer }
+        breakdown:
+          type: object
+          properties:
+            LIKE:  { type: integer }
+            LOVE:  { type: integer }
+            HAHA:  { type: integer }
+            WOW:   { type: integer }
+            SAD:   { type: integer }
+            ANGRY: { type: integer }
+
+    FeedResponse:
+      type: object
+      properties:
+        posts:      { type: array, items: { $ref: '#/components/schemas/Post' } }
+        nextCursor: { type: string, nullable: true }
+        hasMore:    { type: boolean }
+
+    Group:
+      type: object
+      properties:
+        groupId:     { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string }
+        privacy:     { $ref: '#/components/schemas/GroupPrivacy' }
+        memberCount: { type: integer }
+        createdAt:   { type: string, format: date-time }
+
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name:        { type: string, example: "CSE 326 Study Group" }
+        description: { type: string, example: "Discussion for ISD course." }
+        privacy:
+          allOf:
+            - $ref: '#/components/schemas/GroupPrivacy'
+          default: PUBLIC
+
+    UpdateGroupRequest:
+      type: object
+      properties:
+        name:        { type: string }
+        description: { type: string }
+        privacy:     { $ref: '#/components/schemas/GroupPrivacy' }
+
+    GroupDeletionRequest:
+      type: object
+      properties:
+        requestId:  { type: string, format: uuid }
+        groupId:    { type: string, format: uuid }
+        reason:     { type: string }
+        status:     { $ref: '#/components/schemas/RequestStatus' }
+        createdAt:  { type: string, format: date-time }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+
+    Notification:
+      type: object
+      properties:
+        notificationId: { type: string, format: uuid }
+        type:           { $ref: '#/components/schemas/NotificationType' }
+        title:          { type: string }
+        message:        { type: string }
+        isRead:         { type: boolean }
+        createdAt:      { type: string, format: date-time }
+
+    ContentFlag:
+      type: object
+      properties:
+        flagId:      { type: string, format: uuid }
+        contentId:   { type: string, format: uuid }
+        contentType: { $ref: '#/components/schemas/ContentType' }
+        flaggedBy:   { $ref: '#/components/schemas/UserSummary' }
+        aiScore:     { type: number, format: double, minimum: 0, maximum: 1 }
+        priority:    { $ref: '#/components/schemas/ContentFlagPriority' }
+        status:      { $ref: '#/components/schemas/FlagStatus' }
+        createdAt:   { type: string, format: date-time }
+        reviewedAt:  { type: string, format: date-time, nullable: true }
+
+    ReportRequest:
+      type: object
+      required: [contentType, contentId, violationType]
+      properties:
+        contentType:   { $ref: '#/components/schemas/ContentType' }
+        contentId:     { type: string, format: uuid }
+        violationType: { $ref: '#/components/schemas/ViolationType' }
+        description:   { type: string, maxLength: 500 }
+
+    ModerationDecision:
+      type: object
+      properties:
+        decisionId:   { type: string, format: uuid }
+        contentId:    { type: string, format: uuid }
+        contentType:  { $ref: '#/components/schemas/ContentType' }
+        decision:     { $ref: '#/components/schemas/ModerationAction' }
+        reason:       { type: string }
+        aiScore:      { type: number, format: double }
+        decidedAt:    { type: string, format: date-time }
+
+    Violation:
+      type: object
+      properties:
+        violationId:   { type: string, format: uuid }
+        userId:        { type: string, format: uuid }
+        violationType: { $ref: '#/components/schemas/ViolationType' }
+        severity:      { type: integer, minimum: 1, maximum: 5 }
+        contentId:     { type: string, format: uuid, nullable: true }
+        description:   { type: string }
+        issuedAt:      { type: string, format: date-time }
+        expiresAt:     { type: string, format: date-time, nullable: true }
+
+    BanRecord:
+      type: object
+      properties:
+        banId:          { type: string, format: uuid }
+        userId:         { type: string, format: uuid }
+        banType:        { $ref: '#/components/schemas/BanType' }
+        reason:         { type: string }
+        violationCount: { type: integer }
+        issuedAt:       { type: string, format: date-time }
+        expiresAt:      { type: string, format: date-time, nullable: true }
+        isActive:       { type: boolean }
+
+    ApplyBanRequest:
+      type: object
+      required: [banType, reason]
+      properties:
+        banType: { $ref: '#/components/schemas/BanType' }
+        reason:  { type: string, example: "Repeated hate speech violations." }
+
+    GroupModeration:
+      type: object
+      properties:
+        moderationId: { type: string, format: uuid }
+        groupId:      { type: string, format: uuid }
+        reportedBy:   { $ref: '#/components/schemas/UserSummary' }
+        reason:       { type: string }
+        severity:     { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        status:       { type: string, enum: [PENDING, UNDER_REVIEW, RESOLVED] }
+        reportedAt:   { type: string, format: date-time }
+        reviewedAt:   { type: string, format: date-time, nullable: true }
+
+    ModerationAnalytics:
+      type: object
+      properties:
+        analyticsId:       { type: string, format: uuid }
+        totalFlags:        { type: integer }
+        resolvedFlags:     { type: integer }
+        pendingFlags:      { type: integer }
+        totalBans:         { type: integer }
+        activeBans:        { type: integer }
+        totalViolations:   { type: integer }
+        topViolationTypes:
+          type: array
+          items:
+            type: object
+            properties:
+              type:  { $ref: '#/components/schemas/ViolationType' }
+              count: { type: integer }
+        reportPeriod:
+          type: object
+          properties:
+            from: { type: string, format: date-time }
+            to:   { type: string, format: date-time }
+        lastUpdated:       { type: string, format: date-time }
+
+    PaginatedMeta:
+      type: object
+      properties:
+        page:       { type: integer, example: 1 }
+        limit:      { type: integer, example: 20 }
+        total:      { type: integer, example: 250 }
+        totalPages: { type: integer, example: 13 }
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:    { type: string }
+        message: { type: string }
+
+  # ─── RESPONSES ───────────────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            default: { $ref: '#/components/examples/UnauthorizedExample' }
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            default: { $ref: '#/components/examples/ForbiddenExample' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            default: { $ref: '#/components/examples/NotFoundExample' }
+
+  # ─── PARAMETERS ──────────────────────────────────────────────────────────────
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "a1b2c3d4-0001-0001-0001-000000000001"
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "p1b2c3d4-0001-0001-0001-000000000001"
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "c1b2c3d4-0001-0001-0001-000000000001"
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "g1b2c3d4-0001-0001-0001-000000000001"
+    FlagId:
+      name: flagId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "fl1b2c3d-0001-0001-0001-000000000001"
+    BanId:
+      name: banId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "ban1b2c3-0001-0001-0001-000000000001"
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "gdr1b2c3-0001-0001-0001-000000000001"
+    PageParam:
+      name: page
+      in: query
+      schema: { type: integer, default: 1, minimum: 1 }
+    LimitParam:
+      name: limit
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── AUTH ─────────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            example:
+              email: "alice@example.com"
+              password: "Secur3P@ss"
+              firstName: "Alice"
+              lastName: "Johnson"
+              dateOfBirth: "1998-06-15"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+              example:
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNCIsImlhdCI6MTc0MDQ4MDAwMH0.abc123"
+                refreshToken: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4xMjM0NTY3ODk="
+                expiresIn: 3600
+                user:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: null
+                  isActive: true
+        '409':
+          description: Email already in use
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                code: "EMAIL_CONFLICT"
+                message: "An account with this email address already exists."
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            example:
+              email: "alice@example.com"
+              password: "Secur3P@ss"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+              example:
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNCIsImlhdCI6MTc0MDQ4MDAwMH0.abc123"
+                refreshToken: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4xMjM0NTY3ODk="
+                expiresIn: 3600
+                user:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                  isActive: true
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                code: "INVALID_CREDENTIALS"
+                message: "The email or password is incorrect."
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and invalidate tokens
+      responses:
+        '204': { description: Logged out successfully }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+            example:
+              refreshToken: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4xMjM0NTY3ODk="
+      responses:
+        '200':
+          description: New access token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+              example:
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNCIsImlhdCI6MTc0MDQ4MzYwMH0.xyz789"
+                refreshToken: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4xMjM0NTY3ODk="
+                expiresIn: 3600
+                user:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                  isActive: true
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ── USERS ─────────────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user's profile
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+              examples:
+                default: { $ref: '#/components/examples/UserProfileExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    patch:
+      tags: [Users]
+      summary: Update current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+            example:
+              bio: "Passionate about building scalable systems 🛠️"
+              firstName: "Alice"
+              lastName: "Johnson"
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+              examples:
+                default: { $ref: '#/components/examples/UserProfileExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate current user's account
+      description: Sets `isActive = false`. The account can be reactivated by logging in again.
+      responses:
+        '200':
+          description: Account deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "Your account has been deactivated." }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get a user's public profile
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+              examples:
+                default: { $ref: '#/components/examples/UserProfileExample' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Search users by name or email
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2 }
+          example: "alice"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/UserSummary' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                    firstName: "Alice"
+                    lastName: "Johnson"
+                    profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                    isActive: true
+                  - userId: "a2b3c4d5-0002-0002-0002-000000000002"
+                    firstName: "Alice"
+                    lastName: "Wang"
+                    profilePicture: "https://cdn.facebook-isd.io/avatars/alice_w.jpg"
+                    isActive: true
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 2
+                  totalPages: 1
+
+  # ── FRIENDS ──────────────────────────────────────────────────────────────────
+  /friends:
+    get:
+      tags: [Friends]
+      summary: Get current user's friend list
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: List of friends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/UserSummary' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                    firstName: "Bob"
+                    lastName: "Smith"
+                    profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                    isActive: true
+                  - userId: "c3d4e5f6-0003-0003-0003-000000000003"
+                    firstName: "Carol"
+                    lastName: "Davis"
+                    profilePicture: "https://cdn.facebook-isd.io/avatars/carol.jpg"
+                    isActive: true
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 342
+                  totalPages: 18
+
+  /friends/suggestions:
+    get:
+      tags: [Friends]
+      summary: Get friend suggestions (Friend Suggestion Engine)
+      description: Uses BFS on the social graph plus user activity analysis to suggest people you may know.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Friend suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items: { $ref: '#/components/schemas/FriendSuggestion' }
+              example:
+                suggestions:
+                  - user:
+                      userId: "d4e5f6g7-0004-0004-0004-000000000004"
+                      firstName: "David"
+                      lastName: "Lee"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/david.jpg"
+                      isActive: true
+                    mutualFriends: 8
+                    reason: "mutual_friends"
+                  - user:
+                      userId: "e5f6g7h8-0005-0005-0005-000000000005"
+                      firstName: "Eva"
+                      lastName: "Green"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/eva.jpg"
+                      isActive: true
+                    mutualFriends: 5
+                    reason: "same_location"
+
+  /friends/requests:
+    get:
+      tags: [Friends]
+      summary: Get pending friend requests (received)
+      responses:
+        '200':
+          description: Pending friend requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Friendship' } }
+              example:
+                data:
+                  - friendshipId: "fr1b2c3d-0001-0001-0001-000000000001"
+                    requester:
+                      userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                      firstName: "Bob"
+                      lastName: "Smith"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                      isActive: true
+                    receiver:
+                      userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                      firstName: "Alice"
+                      lastName: "Johnson"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                      isActive: true
+                    status: "PENDING"
+                    createdAt: "2026-02-25T14:00:00Z"
+                    acceptedAt: null
+
+  /friends/requests/{userId}:
+    post:
+      tags: [Friends]
+      summary: Send a friend request to a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '201':
+          description: Friend request sent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Friendship' }
+              examples:
+                default: { $ref: '#/components/examples/FriendshipExample' }
+        '409':
+          description: Friend request already exists or users are already friends
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                code: "ALREADY_FRIENDS"
+                message: "You are already friends with this user."
+
+    delete:
+      tags: [Friends]
+      summary: Cancel a sent friend request or unfriend a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204': { description: Request cancelled or unfriended }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /friends/requests/{userId}/accept:
+    post:
+      tags: [Friends]
+      summary: Accept a friend request
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Friend request accepted — status changes to ACCEPTED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Friendship' }
+              example:
+                friendshipId: "fr1b2c3d-0001-0001-0001-000000000001"
+                requester:
+                  userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                  firstName: "Bob"
+                  lastName: "Smith"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                  isActive: true
+                receiver:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                  isActive: true
+                status: "ACCEPTED"
+                createdAt: "2026-02-25T14:00:00Z"
+                acceptedAt: "2026-02-25T15:00:00Z"
+
+  /friends/requests/{userId}/decline:
+    post:
+      tags: [Friends]
+      summary: Decline a friend request
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Friend request declined — status changes to DECLINED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Friendship' }
+              example:
+                friendshipId: "fr1b2c3d-0001-0001-0001-000000000001"
+                requester:
+                  userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                  firstName: "Bob"
+                  lastName: "Smith"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                  isActive: true
+                receiver:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                  isActive: true
+                status: "DECLINED"
+                createdAt: "2026-02-25T14:00:00Z"
+                acceptedAt: null
+
+  /friends/{userId}/block:
+    post:
+      tags: [Friends]
+      summary: Block a user
+      description: Sets the friendship status to BLOCKED. The blocked user cannot send friend requests, see your posts, or message you.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User blocked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Friendship' }
+              example:
+                friendshipId: "fr1b2c3d-0001-0001-0001-000000000001"
+                requester:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                  isActive: true
+                receiver:
+                  userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                  firstName: "Bob"
+                  lastName: "Smith"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                  isActive: true
+                status: "BLOCKED"
+                createdAt: "2026-02-25T14:00:00Z"
+                acceptedAt: null
+
+  # ── POSTS ─────────────────────────────────────────────────────────────────────
+  /posts:
+    post:
+      tags: [Posts]
+      summary: Create a new post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePostRequest' }
+            example:
+              content: "Just shipped a brand new feature! Really proud of the team 🚀"
+              visibility: "FRIENDS"
+              imageUrl: "https://cdn.facebook-isd.io/media/post1_img1.jpg"
+              videoUrl: null
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+              examples:
+                default: { $ref: '#/components/examples/PostExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /posts/{postId}:
+    get:
+      tags: [Posts]
+      summary: Get a post by ID
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Post details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+              examples:
+                default: { $ref: '#/components/examples/PostExample' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Posts]
+      summary: Edit a post (author only)
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePostRequest' }
+            example:
+              content: "Just shipped a brand new feature! Really proud of the team 🚀 (edited)"
+              visibility: "PUBLIC"
+      responses:
+        '200':
+          description: Post updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+              example:
+                postId: "p1b2c3d4-0001-0001-0001-000000000001"
+                author:
+                  userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                  firstName: "Alice"
+                  lastName: "Johnson"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                  isActive: true
+                content: "Just shipped a brand new feature! Really proud of the team 🚀 (edited)"
+                imageUrl: null
+                videoUrl: null
+                visibility: "PUBLIC"
+                likeCount: 142
+                commentCount: 23
+                shareCount: 7
+                myReaction: "LIKE"
+                createdAt: "2026-02-20T08:30:00Z"
+                updatedAt: "2026-02-25T10:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    delete:
+      tags: [Posts]
+      summary: Delete a post (author or admin)
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204': { description: Post deleted successfully }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /users/{userId}/posts:
+    get:
+      tags: [Posts]
+      summary: Get all posts by a specific user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: User's posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Post' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - postId: "p1b2c3d4-0001-0001-0001-000000000001"
+                    author:
+                      userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                      firstName: "Alice"
+                      lastName: "Johnson"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                      isActive: true
+                    content: "Just shipped a brand new feature! 🚀"
+                    imageUrl: null
+                    videoUrl: null
+                    visibility: "FRIENDS"
+                    likeCount: 142
+                    commentCount: 23
+                    shareCount: 7
+                    myReaction: null
+                    createdAt: "2026-02-20T08:30:00Z"
+                    updatedAt: "2026-02-20T08:30:00Z"
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 58
+                  totalPages: 3
+
+  # ── REACTIONS ─────────────────────────────────────────────────────────────────
+  /posts/{postId}/reactions:
+    get:
+      tags: [Reactions]
+      summary: Get reaction summary for a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Reactions summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReactionSummary' }
+              example:
+                total: 142
+                breakdown:
+                  LIKE: 80
+                  LOVE: 40
+                  HAHA: 12
+                  WOW: 7
+                  SAD: 2
+                  ANGRY: 1
+
+    put:
+      tags: [Reactions]
+      summary: React to a post (or update existing reaction)
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReactionRequest' }
+            example:
+              type: "LOVE"
+      responses:
+        '200':
+          description: Reaction recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReactionSummary' }
+              example:
+                total: 143
+                breakdown:
+                  LIKE: 80
+                  LOVE: 41
+                  HAHA: 12
+                  WOW: 7
+                  SAD: 2
+                  ANGRY: 1
+
+    delete:
+      tags: [Reactions]
+      summary: Remove your reaction from a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204': { description: Reaction removed }
+
+  /posts/{postId}/comments/{commentId}/reactions:
+    put:
+      tags: [Reactions]
+      summary: React to a comment (or update existing reaction)
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/CommentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReactionRequest' }
+            example:
+              type: "LIKE"
+      responses:
+        '200':
+          description: Comment reaction recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReactionSummary' }
+              example:
+                total: 13
+                breakdown:
+                  LIKE: 10
+                  LOVE: 3
+                  HAHA: 0
+                  WOW: 0
+                  SAD: 0
+                  ANGRY: 0
+
+    delete:
+      tags: [Reactions]
+      summary: Remove your reaction from a comment
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/CommentId'
+      responses:
+        '204': { description: Comment reaction removed }
+
+  # ── COMMENTS ──────────────────────────────────────────────────────────────────
+  /posts/{postId}/comments:
+    get:
+      tags: [Comments]
+      summary: Get top-level comments on a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Comment list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - commentId: "c1b2c3d4-0001-0001-0001-000000000001"
+                    postId: "p1b2c3d4-0001-0001-0001-000000000001"
+                    author:
+                      userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                      firstName: "Bob"
+                      lastName: "Smith"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                      isActive: true
+                    content: "Congrats! That's amazing 🎉"
+                    createdAt: "2026-02-20T09:00:00Z"
+                    updatedAt: "2026-02-20T09:00:00Z"
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 23
+                  totalPages: 2
+
+    post:
+      tags: [Comments]
+      summary: Add a comment to a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommentRequest' }
+            example:
+              content: "Congrats! That's amazing 🎉"
+      responses:
+        '201':
+          description: Comment added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+              examples:
+                default: { $ref: '#/components/examples/CommentExample' }
+
+  /posts/{postId}/comments/{commentId}:
+    patch:
+      tags: [Comments]
+      summary: Edit a comment (author only)
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/CommentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCommentRequest' }
+            example:
+              content: "Congrats! That's truly amazing 🎉 (edited)"
+      responses:
+        '200':
+          description: Comment updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+              example:
+                commentId: "c1b2c3d4-0001-0001-0001-000000000001"
+                postId: "p1b2c3d4-0001-0001-0001-000000000001"
+                author:
+                  userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                  firstName: "Bob"
+                  lastName: "Smith"
+                  profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                  isActive: true
+                content: "Congrats! That's truly amazing 🎉 (edited)"
+                createdAt: "2026-02-20T09:00:00Z"
+                updatedAt: "2026-02-26T10:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    delete:
+      tags: [Comments]
+      summary: Delete a comment (author or admin)
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/CommentId'
+      responses:
+        '204': { description: Comment deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── FEED ──────────────────────────────────────────────────────────────────────
+  /feed:
+    get:
+      tags: [Feed]
+      summary: Get personalized news feed
+      description: |
+        Returns posts ranked by the `PostRankingAlgorithm` using `RankingScore`
+        (recency, engagement, interest, connection scores) and personalized via
+        the `RecommendationEngine` using the user's `UserPreference` and
+        `InteractionHistory`.
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+          description: Pagination cursor from previous response
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Personalized feed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeedResponse' }
+              example:
+                posts:
+                  - postId: "p1b2c3d4-0001-0001-0001-000000000001"
+                    author:
+                      userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                      firstName: "Alice"
+                      lastName: "Johnson"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                      isActive: true
+                    content: "Just shipped a brand new feature! Really proud of the team 🚀"
+                    imageUrl: "https://cdn.facebook-isd.io/media/post1_img1.jpg"
+                    videoUrl: null
+                    visibility: "FRIENDS"
+                    likeCount: 142
+                    commentCount: 23
+                    shareCount: 7
+                    myReaction: "LIKE"
+                    createdAt: "2026-02-20T08:30:00Z"
+                    updatedAt: "2026-02-20T08:30:00Z"
+                  - postId: "p2c3d4e5-0002-0002-0002-000000000002"
+                    author:
+                      userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                      firstName: "Bob"
+                      lastName: "Smith"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                      isActive: true
+                    content: "Beautiful day in Dhaka! ☀️"
+                    imageUrl: null
+                    videoUrl: null
+                    visibility: "PUBLIC"
+                    likeCount: 56
+                    commentCount: 8
+                    shareCount: 2
+                    myReaction: null
+                    createdAt: "2026-02-25T07:15:00Z"
+                    updatedAt: "2026-02-25T07:15:00Z"
+                nextCursor: "eyJpZCI6InAyYzNkNGU1IiwidHMiOjE3NDA0NjMzMDB9"
+                hasMore: true
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ── GROUPS ────────────────────────────────────────────────────────────────────
+  /groups:
+    post:
+      tags: [Groups]
+      summary: Create a new group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateGroupRequest' }
+            example:
+              name: "CSE 326 Study Group"
+              description: "Discussion group for Information System Design."
+              privacy: "PUBLIC"
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Group' }
+              examples:
+                default: { $ref: '#/components/examples/GroupExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    get:
+      tags: [Groups]
+      summary: Search / browse groups
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+          example: "study"
+        - name: privacy
+          in: query
+          schema: { $ref: '#/components/schemas/GroupPrivacy' }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Group search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Group' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                    name: "CSE 326 Study Group"
+                    description: "Discussion for ISD course."
+                    privacy: "PUBLIC"
+                    memberCount: 47
+                    createdAt: "2026-01-10T10:00:00Z"
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 1
+                  totalPages: 1
+
+  /groups/{groupId}:
+    get:
+      tags: [Groups]
+      summary: Get group details
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Group details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Group' }
+              examples:
+                default: { $ref: '#/components/examples/GroupExample' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Groups]
+      summary: Update group info (group admin only)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateGroupRequest' }
+            example:
+              name: "CSE 326 ISD Study Group"
+              description: "Updated description."
+              privacy: "PRIVATE"
+      responses:
+        '200':
+          description: Group updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Group' }
+              example:
+                groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                name: "CSE 326 ISD Study Group"
+                description: "Updated description."
+                privacy: "PRIVATE"
+                memberCount: 47
+                createdAt: "2026-01-10T10:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /groups/{groupId}/members:
+    get:
+      tags: [Groups]
+      summary: Get group members
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/UserSummary' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                    firstName: "Alice"
+                    lastName: "Johnson"
+                    profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                    isActive: true
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 47
+                  totalPages: 3
+
+    post:
+      tags: [Groups]
+      summary: Join a group (or add a member — group admin)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Joined group successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  groupId: { type: string, format: uuid }
+                  userId:  { type: string, format: uuid }
+              example:
+                success: true
+                groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                userId: "a1b2c3d4-0001-0001-0001-000000000001"
+
+  /groups/{groupId}/members/{userId}:
+    delete:
+      tags: [Groups]
+      summary: Remove a member from a group (group admin or self-leave)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204': { description: Member removed / left group }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /groups/{groupId}/posts:
+    get:
+      tags: [Groups]
+      summary: Get posts in a group
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Group posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Post' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - postId: "pg1b2c3d-0001-0001-0001-000000000001"
+                    author:
+                      userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                      firstName: "Alice"
+                      lastName: "Johnson"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                      isActive: true
+                    content: "Chapter 5 notes are uploaded 📚"
+                    imageUrl: null
+                    videoUrl: null
+                    visibility: "FRIENDS"
+                    likeCount: 12
+                    commentCount: 4
+                    shareCount: 1
+                    myReaction: null
+                    createdAt: "2026-02-22T10:00:00Z"
+                    updatedAt: "2026-02-22T10:00:00Z"
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 12
+                  totalPages: 1
+
+    post:
+      tags: [Groups]
+      summary: Create a post in a group
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePostRequest' }
+            example:
+              content: "Chapter 5 notes are uploaded 📚"
+              visibility: "FRIENDS"
+      responses:
+        '201':
+          description: Group post created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+
+  /groups/{groupId}/deletion-request:
+    post:
+      tags: [Groups]
+      summary: Request deletion of a group (group admin only)
+      description: Creates a `GroupDeletionRequest` with status PENDING, which must be approved or rejected by a system admin.
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, example: "Group is no longer active." }
+      responses:
+        '201':
+          description: Deletion request submitted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDeletionRequest' }
+              examples:
+                default: { $ref: '#/components/examples/GroupDeletionRequestExample' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /users/me/groups:
+    get:
+      tags: [Groups]
+      summary: Get current user's joined groups
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: User's groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Group' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                    name: "CSE 326 Study Group"
+                    description: "Discussion for ISD course."
+                    privacy: "PUBLIC"
+                    memberCount: 47
+                    createdAt: "2026-01-10T10:00:00Z"
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 3
+                  totalPages: 1
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Get notifications for current user
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:        { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                  unreadCount: { type: integer }
+                  meta:        { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - notificationId: "n1b2c3d4-0001-0001-0001-000000000001"
+                    type: "POST_LIKE"
+                    title: "New Reaction"
+                    message: "Bob Smith reacted ❤️ to your post."
+                    isRead: false
+                    createdAt: "2026-02-25T15:30:00Z"
+                  - notificationId: "n2b3c4d5-0002-0002-0002-000000000002"
+                    type: "FRIEND_REQUEST"
+                    title: "New Friend Request"
+                    message: "Carol Davis sent you a friend request."
+                    isRead: false
+                    createdAt: "2026-02-25T14:20:00Z"
+                unreadCount: 5
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 5
+                  totalPages: 1
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '204': { description: All notifications marked as read }
+
+  /notifications/{notificationId}:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          example: "n1b2c3d4-0001-0001-0001-000000000001"
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+              example:
+                notificationId: "n1b2c3d4-0001-0001-0001-000000000001"
+                type: "POST_LIKE"
+                title: "New Reaction"
+                message: "Bob Smith reacted ❤️ to your post."
+                isRead: true
+                createdAt: "2026-02-25T15:30:00Z"
+
+    delete:
+      tags: [Notifications]
+      summary: Delete a notification
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Notification deleted }
+
+  # ── MODERATION (User-facing) ──────────────────────────────────────────────────
+  /content/report:
+    post:
+      tags: [Moderation]
+      summary: Report content (post, comment, group post, or profile)
+      description: Creates a `ContentFlag` in the system that enters the admin moderation queue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportRequest' }
+            example:
+              contentType: "POST"
+              contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+              violationType: "HATE_SPEECH"
+              description: "This post contains targeted hate speech against a community."
+      responses:
+        '201':
+          description: Report submitted — content flag created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentFlag' }
+              examples:
+                default: { $ref: '#/components/examples/ContentFlagExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ── ADMIN ─────────────────────────────────────────────────────────────────────
+
+  # Admin – Content Flags & Decisions
+  /admin/flags:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Get flagged content queue"
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/FlagStatus' }
+        - name: priority
+          in: query
+          schema: { $ref: '#/components/schemas/ContentFlagPriority' }
+        - name: contentType
+          in: query
+          schema: { $ref: '#/components/schemas/ContentType' }
+        - name: prioritySort
+          in: query
+          schema: { type: boolean, default: true }
+          description: Sort by AI score and priority descending
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Flagged content queue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ContentFlag' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - flagId: "fl1b2c3d-0001-0001-0001-000000000001"
+                    contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+                    contentType: "POST"
+                    flaggedBy:
+                      userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                      firstName: "Bob"
+                      lastName: "Smith"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                      isActive: true
+                    aiScore: 0.82
+                    priority: "HIGH"
+                    status: "PENDING"
+                    createdAt: "2026-02-25T16:00:00Z"
+                    reviewedAt: null
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 14
+                  totalPages: 1
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/flags/{flagId}/decide:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Make a moderation decision on a content flag"
+      parameters:
+        - $ref: '#/components/parameters/FlagId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { $ref: '#/components/schemas/ModerationAction' }
+                reason:   { type: string, maxLength: 500 }
+            example:
+              decision: "DELETE"
+              reason: "Content clearly violates community guidelines on hate speech."
+      responses:
+        '200':
+          description: Moderation decision recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModerationDecision' }
+              example:
+                decisionId: "md1b2c3d-0001-0001-0001-000000000001"
+                contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+                contentType: "POST"
+                decision: "DELETE"
+                reason: "Content clearly violates community guidelines on hate speech."
+                aiScore: 0.82
+                decidedAt: "2026-02-26T09:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # Admin – Users
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: "[Admin] List all users"
+      parameters:
+        - name: isActive
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/UserProfile' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - userId: "a1b2c3d4-0001-0001-0001-000000000001"
+                    firstName: "Alice"
+                    lastName: "Johnson"
+                    profilePicture: "https://cdn.facebook-isd.io/avatars/alice.jpg"
+                    isActive: true
+                    email: "alice@example.com"
+                    bio: "Software Engineer"
+                    dateOfBirth: "1998-06-15"
+                    createdAt: "2022-09-01T10:00:00Z"
+                    updatedAt: "2026-02-20T08:30:00Z"
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 5000
+                  totalPages: 250
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/users/{userId}/warn:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Issue a warning to a user"
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, example: "Posting misleading information repeatedly." }
+      responses:
+        '200':
+          description: Warning issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "Warning issued to user." }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/users/{userId}/ban:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Apply a ban to a user"
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApplyBanRequest' }
+            example:
+              banType: "TEMPORARY_7_DAYS"
+              reason: "Repeated hate speech violations."
+      responses:
+        '201':
+          description: Ban record created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BanRecord' }
+              examples:
+                default: { $ref: '#/components/examples/BanRecordExample' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/users/{userId}/ban/{banId}:
+    delete:
+      tags: [Admin]
+      summary: "[Admin] Lift (remove) an active ban"
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/BanId'
+      responses:
+        '200':
+          description: Ban lifted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  banId:   { type: string, format: uuid }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/users/{userId}/violations:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Get all violations for a user"
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User violation history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Violation' } }
+              example:
+                data:
+                  - violationId: "vio1b2c3-0001-0001-0001-000000000001"
+                    userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                    violationType: "HATE_SPEECH"
+                    severity: 2
+                    contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+                    description: "Post contained targeted hate speech."
+                    issuedAt: "2026-02-26T09:00:00Z"
+                    expiresAt: "2026-03-26T09:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [Admin]
+      summary: "[Admin] Apply a strike/violation to a user"
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [violationType, severity]
+              properties:
+                violationType: { $ref: '#/components/schemas/ViolationType' }
+                severity:      { type: integer, minimum: 1, maximum: 5 }
+                contentId:     { type: string, format: uuid, nullable: true }
+                description:   { type: string }
+            example:
+              violationType: "HATE_SPEECH"
+              severity: 2
+              contentId: "p1b2c3d4-0001-0001-0001-000000000001"
+              description: "Post contained targeted hate speech."
+      responses:
+        '201':
+          description: Violation recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Violation' }
+              examples:
+                default: { $ref: '#/components/examples/ViolationExample' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # Admin – Posts
+  /admin/posts:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Manage posts — list all posts"
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: All posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Post' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/posts/{postId}:
+    delete:
+      tags: [Admin]
+      summary: "[Admin] Delete a post with reason"
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - name: reason
+          in: query
+          required: true
+          schema: { type: string }
+          example: "Violates community guidelines on nudity."
+      responses:
+        '204': { description: Post deleted by admin }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # Admin – Groups
+  /admin/groups:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Manage groups — list all groups"
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: All groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Group' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/groups/{groupId}/disable:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Disable a group"
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+            example:
+              reason: "Group was found to be promoting harmful content."
+      responses:
+        '200':
+          description: Group disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  groupId: { type: string, format: uuid }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/groups/{groupId}/admin/{userId}:
+    delete:
+      tags: [Admin]
+      summary: "[Admin] Remove a group admin"
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/UserId'
+        - name: reason
+          in: query
+          required: true
+          schema: { type: string }
+          example: "Admin repeatedly violated moderation guidelines."
+      responses:
+        '204': { description: Group admin removed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/groups/{groupId}/admin/{userId}/warn:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Warn a group admin"
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+            example:
+              reason: "Failed to moderate harmful content in the group."
+      responses:
+        '200':
+          description: Warning issued to group admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # Admin – Group Deletion Requests
+  /admin/group-deletion-requests:
+    get:
+      tags: [Admin]
+      summary: "[Admin] List all group deletion requests"
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/RequestStatus' }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Group deletion requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GroupDeletionRequest' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - requestId: "gdr1b2c3-0001-0001-0001-000000000001"
+                    groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                    reason: "Group is no longer active."
+                    status: "PENDING"
+                    createdAt: "2026-02-26T10:00:00Z"
+                    reviewedAt: null
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 3
+                  totalPages: 1
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/group-deletion-requests/{requestId}/approve:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Approve a group deletion request"
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Deletion request approved — group will be deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDeletionRequest' }
+              example:
+                requestId: "gdr1b2c3-0001-0001-0001-000000000001"
+                groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                reason: "Group is no longer active."
+                status: "APPROVED"
+                createdAt: "2026-02-26T10:00:00Z"
+                reviewedAt: "2026-02-26T12:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/group-deletion-requests/{requestId}/reject:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Reject a group deletion request"
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              properties:
+                rejectionReason: { type: string }
+            example:
+              rejectionReason: "The group is still active and has members."
+      responses:
+        '200':
+          description: Deletion request rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDeletionRequest' }
+              example:
+                requestId: "gdr1b2c3-0001-0001-0001-000000000001"
+                groupId: "g1b2c3d4-0001-0001-0001-000000000001"
+                reason: "Group is no longer active."
+                status: "REJECTED"
+                createdAt: "2026-02-26T10:00:00Z"
+                reviewedAt: "2026-02-26T12:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # Admin – Group Moderation Reports
+  /admin/group-moderation:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Review reported groups"
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, UNDER_REVIEW, RESOLVED] }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Reported groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GroupModeration' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+              example:
+                data:
+                  - moderationId: "gm1b2c3d-0001-0001-0001-000000000001"
+                    groupId: "g2c3d4e5-0002-0002-0002-000000000002"
+                    reportedBy:
+                      userId: "b2c3d4e5-0002-0002-0002-000000000002"
+                      firstName: "Bob"
+                      lastName: "Smith"
+                      profilePicture: "https://cdn.facebook-isd.io/avatars/bob.jpg"
+                      isActive: true
+                    reason: "Group promotes harmful ideologies."
+                    severity: "HIGH"
+                    status: "PENDING"
+                    reportedAt: "2026-02-25T16:00:00Z"
+                    reviewedAt: null
+                meta:
+                  page: 1
+                  limit: 20
+                  total: 2
+                  totalPages: 1
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/group-moderation/{moderationId}/resolve:
+    post:
+      tags: [Admin]
+      summary: "[Admin] Resolve a group moderation report"
+      parameters:
+        - name: moderationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { $ref: '#/components/schemas/GroupModerationAction' }
+            example:
+              action: "WARN_ADMIN"
+      responses:
+        '200':
+          description: Group moderation resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupModeration' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # Admin – Analytics
+  /admin/analytics/moderation:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Get moderation dashboard analytics"
+      description: Returns `ModerationAnalytics` — KPIs, violation trends, content safety patterns, top violating users.
+      responses:
+        '200':
+          description: Moderation analytics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModerationAnalytics' }
+              example:
+                analyticsId: "an1b2c3d-0001-0001-0001-000000000001"
+                totalFlags: 142
+                resolvedFlags: 128
+                pendingFlags: 14
+                totalBans: 38
+                activeBans: 12
+                totalViolations: 95
+                topViolationTypes:
+                  - type: "HATE_SPEECH"
+                    count: 41
+                  - type: "SPAM"
+                    count: 28
+                  - type: "HARASSMENT"
+                    count: 19
+                reportPeriod:
+                  from: "2026-02-01T00:00:00Z"
+                  to:   "2026-02-26T23:59:59Z"
+                lastUpdated: "2026-02-26T12:00:00Z"
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/analytics/system:
+    get:
+      tags: [Admin]
+      summary: "[Admin] Get system statistics"
+      responses:
+        '200':
+          description: System stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers:   { type: integer, example: 52430 }
+                  activeUsers:  { type: integer, example: 48201 }
+                  totalPosts:   { type: integer, example: 312900 }
+                  totalGroups:  { type: integer, example: 4820 }
+                  totalReports: { type: integer, example: 142 }
+                  uptime:       { type: string, example: "99.97%" }
+                  lastUpdated:  { type: string, format: date-time, example: "2026-02-26T12:00:00Z" }
+        '403': { $ref: '#/components/responses/Forbidden' }
